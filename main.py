@@ -1,15 +1,15 @@
-import os
-import threading
-import asyncio
+from web import start_web
 import discord
 from discord.ext import commands
-from web import start_web
+import asyncio
+import os
+
+start_web()  # <-- MUITO IMPORTANTE
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
-
 
 @bot.event
 async def on_ready():
@@ -17,17 +17,10 @@ async def on_ready():
     synced = await bot.tree.sync()
     print(f"✅ {len(synced)} comandos sincronizados GLOBALMENTE")
 
-
-async def start_bot():
+async def main():
     async with bot:
         await bot.load_extension("cogs.whitelist")
         print("✅ Cog whitelist carregado")
         await bot.start(TOKEN)
 
-
-if __name__ == "__main__":
-    # sobe o web server em outra thread (Render exige porta aberta)
-    threading.Thread(target=start_web, daemon=True).start()
-
-    # inicia o bot
-    asyncio.run(start_bot())
+asyncio.run(main())
