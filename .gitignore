@@ -2,18 +2,13 @@
 venv/
 .env
 
-# Cache do Python
+# Cache Python
 __pycache__/
 *.pyc
-*.pyo
 
-# Arquivos do sistema
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# IDEs / Editores
+# IDE
 .vscode/
 .idea/
+
+# Sistema
+.DS_Store
