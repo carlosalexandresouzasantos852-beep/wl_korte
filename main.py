@@ -1,9 +1,10 @@
+from web import run
 import discord
 from discord.ext import commands
 import asyncio
 import os
 
-TOKEN = os.getenv("DISCORD_TOKEN")  # <-- pega do ambiente
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -17,6 +18,7 @@ async def on_ready():
 
 
 async def main():
+    run()  # inicia o web service
     async with bot:
         await bot.load_extension("cogs.whitelist")
         print("✅ Cog whitelist carregado")
