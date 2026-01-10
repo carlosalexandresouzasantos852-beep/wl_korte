@@ -1,0 +1,9 @@
+app = "bot-wl-korte"
+primary_region = "gru"
+
+[processes]
+  app = "python main.py"
+
+[[vm]]
+  memory = "1gb"
+  cpus = 1
