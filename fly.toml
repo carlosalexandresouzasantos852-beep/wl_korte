@@ -1,15 +1,12 @@
-# fly.toml app configuration file generated for bot-wl-korte-billowing-surf-1863 on 2026-01-10T11:54:24-03:00
+# fly.toml app configuration file generated for wl-korte on 2026-01-10T16:36:10Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'bot-wl-korte-billowing-surf-1863'
+app = 'wl-korte'
 primary_region = 'gru'
 
 [build]
-
-[processes]
-  app = 'python main.py'
 
 [http_service]
   internal_port = 8080
@@ -21,5 +18,6 @@ primary_region = 'gru'
 
 [[vm]]
   memory = '1gb'
+  cpu_kind = 'shared'
   cpus = 1
   memory_mb = 1024
