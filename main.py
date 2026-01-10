@@ -5,6 +5,9 @@ import os
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 
+if not TOKEN:
+    raise RuntimeError("❌ DISCORD_TOKEN não encontrado no ambiente")
+
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
