@@ -25,9 +25,7 @@ def save_config(data):
 # Modal de Whitelist
 # ------------------------------
 class WhitelistModal(Modal, title="📋 Solicitação de Whitelist"):
-    nome_rp = TextInput(label="👤 Nome RP", placeholder="Ex: João Silva")
-    id_rp = TextInput(label="🆔 ID RP", placeholder="Ex: 1515")
-    recrutador = TextInput(label="📝 Quem recrutou", placeholder="Ex: Nome do recrutador")
+    nome_rp = TextInput(label="👤 Nome no Free Fire", placeholder="Ex: João Silva")
 
     async def on_submit(self, interaction: discord.Interaction):
         config = load_config()
@@ -55,14 +53,12 @@ class WhitelistModal(Modal, title="📋 Solicitação de Whitelist"):
             color=discord.Color.orange()
         )
         embed.add_field(name="👤 Usuário", value=interaction.user.mention, inline=False)
-        embed.add_field(name="📛 Nome RP", value=self.nome_rp.value, inline=False)
-        embed.add_field(name="🆔 ID RP", value=self.id_rp.value, inline=False)
-        embed.add_field(name="📝 Quem recrutou", value=self.recrutador.value, inline=False)
+        embed.add_field(name="📛 Nome no Free Fire", value=self.nome_rp.value, inline=False)
 
         await canal.send(embed=embed, view=WhitelistView(interaction.user, self.nome_rp.value, self.id_rp.value, interaction.user))
 
         # Mensagem para o usuário que enviou a WL, some em 3 segundos
-        await interaction.response.send_message("✅ Whitelist enviada para análise da staff KORTE!", ephemeral=True)
+        await interaction.response.send_message("✅ Whitelist enviada para análise da staff TOP BLACK", ephemeral=True)
         asyncio.create_task(self.delete_ephemeral_message(interaction))
 
     async def delete_ephemeral_message(self, interaction):
@@ -92,7 +88,7 @@ class WhitelistView(View):
             description=descricao,
             color=discord.Color.green() if "aprovada" in titulo.lower() else discord.Color.red()
         )
-        embed.set_footer(text="Whitelist System - KORTE")
+        embed.set_footer(text="Whitelist System - TOP BLACK")
         msg = await canal.send(embed=embed)
         await asyncio.sleep(duracao)
         await msg.delete()
@@ -137,8 +133,7 @@ class WhitelistView(View):
         if canal_aceitos:
             descricao = (
                 f"👤 Usuário:\n{self.usuario.mention}\n\n"
-                f"📛 Nome RP:\n{self.nome}\n\n"
-                f"🆔 ID:\n{self.idrp}\n\n"
+                f"📛 Nome no Free Fire:\n{self.nome}\n\n"
                 f"✅ Aprovado por:\n{interaction.user.mention}\n\n"
                 f"{nick_msg}{cargo_msg}"
             )
@@ -161,7 +156,6 @@ class WhitelistView(View):
             descricao = (
                 f"👤 Usuário:\n{self.usuario.mention}\n\n"
                 f"📛 Nome RP:\n{self.nome}\n\n"
-                f"🆔 ID:\n{self.idrp}\n\n"
                 f"❌ Recusado por:\n{interaction.user.mention}"
             )
             asyncio.create_task(self.send_embed_temporary(canal_recusados, "❌ Whitelist Recusada", descricao, duracao=36000))
@@ -178,7 +172,7 @@ class PainelView(View):
         super().__init__(timeout=None)
         self.gif_url = gif_url or "https://cdn.discordapp.com/attachments/1266573285236408363/1453240164351610931/ezgif.com-video-to-gif-converter.gif"
 
-    @discord.ui.button(label="📋 Iniciar Whitelist - KORTE", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="📋 Iniciar Liberação Discord TOP BLACK", style=discord.ButtonStyle.green)
     async def iniciar(self, interaction: discord.Interaction, button: Button):
         await interaction.response.send_modal(WhitelistModal())
 
@@ -228,8 +222,8 @@ class Whitelist(commands.Cog):
             return
 
         embed = discord.Embed(
-            title="📋 PAINEL DE WHITELIST - KORTE",
-            description="📝 Clique no botão abaixo para iniciar sua whitelist.\n⚠️ Responda corretamente.\n⏳ Aguarde a análise.",
+            title="📋 PAINEL DE WHITELIST - TOP BLACK",
+            description="📝 Clique no botão abaixo para iniciar sua LIBERAÇÃO NO DISCORD.\n⚠️ Responda corretamente.\n⏳ Aguarde a análise.",
             color=discord.Color.orange()
         )
         embed.set_image(url=gif_url or "https://cdn.discordapp.com/attachments/1266573285236408363/1453240164351610931/ezgif.com-video-to-gif-converter.gif")

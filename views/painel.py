@@ -14,11 +14,7 @@ def load():
 
 class WLModal(Modal, title="📋 Whitelist"):
 
-    nome = TextInput(label="👤 Nome RP")
-
-    idrp = TextInput(label="🆔 ID RP")
-
-    recrutador = TextInput(label="📝 Quem recrutou")
+    nome = TextInput(label="👤 Nome no Free Fire")
 
     async def on_submit(self, interaction: discord.Interaction):
         cfg = load()
@@ -40,9 +36,7 @@ class WLModal(Modal, title="📋 Whitelist"):
             color=discord.Color.orange()
         )
         embed.add_field(name="👤 Usuário", value=interaction.user.mention, inline=False)
-        embed.add_field(name="📋 Nome RP", value=self.nome.value, inline=True)
-        embed.add_field(name="🆔 ID RP", value=self.idrp.value, inline=True)
-        embed.add_field(name="👤 Recrutador", value=self.recrutador.value, inline=False)
+        embed.add_field(name="📋 Nome no Free Fire", value=self.nome.value, inline=True)
 
         await canal.send(embed=embed, view=WLView(interaction.user, self.nome.value, self.idrp.value))
 
@@ -80,9 +74,7 @@ class WLView(View):
         )
         aprovado_embed.add_field(name="👤 Usuário", value=self.user.mention, inline=False)
 
-        aprovado_embed.add_field(name="📋 Nome RP", value=self.nome, inline=True)
-
-        aprovado_embed.add_field(name="🆔 ID RP", value=self.idrp, inline=True)
+        aprovado_embed.add_field(name="📋 Nome no Free Fire", value=self.nome, inline=True)
 
         aprovado_embed.add_field(name="👤 Aprovado por", value=interaction.user.mention, inline=False)
 
@@ -118,8 +110,7 @@ class WLView(View):
             color=discord.Color.red()
         )
         recusado_embed.add_field(name="Usuário", value=self.user.mention, inline=False)
-        recusado_embed.add_field(name="Nome RP", value=self.nome, inline=True)
-        recusado_embed.add_field(name="ID RP", value=self.idrp, inline=True)
+        recusado_embed.add_field(name="Nome no Free Fire", value=self.nome, inline=True)
         recusado_embed.add_field(name="Recusado por", value=interaction.user.mention, inline=False)
 
         if recusados_canal:
@@ -144,6 +135,6 @@ class PainelView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="📋 Iniciar Whitelist-KORTE", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="📋 LIBERAR DICORD TOP BLACK", style=discord.ButtonStyle.green)
     async def iniciar(self, interaction: discord.Interaction, button: Button):
         await interaction.response.send_modal(WLModal())
