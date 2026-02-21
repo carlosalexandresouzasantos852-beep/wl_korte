@@ -154,6 +154,10 @@ async def main():
     async with bot:
         await bot.load_extension("cogs.whitelist")
         print("✅ Cog whitelist carregado")
+
+        await bot.load_extension("cogs.controle_financeiro")
+        print("✅ Cog controle_financeiro carregado")
+
         await bot.start(TOKEN)
 
 
