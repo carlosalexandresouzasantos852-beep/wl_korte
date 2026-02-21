@@ -135,6 +135,6 @@ class PainelView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="📋 LIBERAR DICORD TOP BLACK", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="📋 Iniciar Whitelist - TROPA DO TIO PATINHAS", style=discord.ButtonStyle.green)
     async def iniciar(self, interaction: discord.Interaction, button: Button):
         await interaction.response.send_modal(WLModal())

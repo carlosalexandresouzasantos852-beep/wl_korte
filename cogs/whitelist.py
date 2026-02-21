@@ -88,7 +88,7 @@ class WhitelistView(View):
             description=descricao,
             color=discord.Color.green() if "aprovada" in titulo.lower() else discord.Color.red()
         )
-        embed.set_footer(text="Whitelist System - TOP BLACK")
+        embed.set_footer(text="Whitelist System - KORTE")
         msg = await canal.send(embed=embed)
         await asyncio.sleep(duracao)
         await msg.delete()
@@ -165,7 +165,7 @@ class WhitelistView(View):
         await interaction.channel.delete()
 
 # ------------------------------
-# View do Painel
+# View do Painel 
 # ------------------------------
 class PainelView(View):
     def __init__(self, gif_url=None):
@@ -222,8 +222,8 @@ class Whitelist(commands.Cog):
             return
 
         embed = discord.Embed(
-            title="📋 PAINEL DE WHITELIST - TOP BLACK",
-            description="📝 Clique no botão abaixo para iniciar sua LIBERAÇÃO NO DISCORD.\n⚠️ Responda corretamente.\n⏳ Aguarde a análise.",
+            title="📋 PAINEL DE WHITELIST - KORTE",
+            description="📝 Clique no botão abaixo para iniciar sua whitelist.\n⚠️ Responda corretamente.\n⏳ Aguarde a análise.",
             color=discord.Color.orange()
         )
         embed.set_image(url=gif_url or "https://cdn.discordapp.com/attachments/1266573285236408363/1453240164351610931/ezgif.com-video-to-gif-converter.gif")
