@@ -9,6 +9,7 @@ import os
 
 CONFIG_FILE = "config.json"
 PLANOS_FILE = "planos.json"
+ID_LOG_PAGAMENTOS = 1474620691050660020
 QRCODE_FILE = "qrcode.png"
 
 # ------------------------------
@@ -28,20 +29,46 @@ def save_json(file, data):
 def plano_ativo(guild_id):
     planos = load_json(PLANOS_FILE)
     guild_id = str(guild_id)
+
     if guild_id not in planos:
         return False
+
     plano = planos[guild_id]
+
     if plano.get("status") != "ativo":
         return False
+
     if time.time() > plano.get("expira_em", 0):
         return False
+
     return True
 
-async def enviar_dm_temp(usuario, embed, duracao=86400, view=None):
+async def notificar_cliente(bot, guild):
+    planos = load_json(PLANOS_FILE)
+    guild_id = str(guild.id)
+
+    if guild_id not in planos:
+        return
+
+    comprador_id = planos[guild_id].get("comprador_id")
+    if not comprador_id:
+        return
+
     try:
-        msg = await usuario.send(embed=embed, view=view)
-        await asyncio.sleep(duracao)
-        await msg.delete()
+        cliente = await bot.fetch_user(comprador_id)
+        embed = discord.Embed(
+            title="❌ Plano Vencido",
+            description=f"O plano do servidor **{guild.name}** venceu.\nEscaneie o QR Code abaixo para renovar.",
+            color=discord.Color.red()
+        )
+        if os.path.exists(QRCODE_FILE):
+            file = discord.File(QRCODE_FILE, filename="qrcode.png")
+            embed.set_image(url="attachment://qrcode.png")
+            view = ConfirmarPagamentoView(cliente)
+            await cliente.send(embed=embed, file=file, view=view)
+        else:
+            view = ConfirmarPagamentoView(cliente)
+            await cliente.send(embed=embed, view=view)
     except:
         pass
 
@@ -58,16 +85,17 @@ class WhitelistModal(Modal, title="📋 Solicitação de Whitelist"):
     async def on_submit(self, interaction: discord.Interaction):
         config = load_json(CONFIG_FILE)
         guild = interaction.guild
+
         categoria_id = config.get("categoria")
         if not categoria_id:
             await interaction.response.send_message("❌ Categoria não configurada.", ephemeral=True)
             return
+
         categoria = guild.get_channel(categoria_id)
         if not categoria:
             await interaction.response.send_message("❌ Categoria não encontrada.", ephemeral=True)
             return
 
-        # Canal temporário para análise
         canal = await guild.create_text_channel(
             name=f"wl-{interaction.user.name}".lower(),
             category=categoria
@@ -112,6 +140,7 @@ class WhitelistView(View):
 
     @discord.ui.button(label="✅ Aprovar", style=discord.ButtonStyle.success)
     async def aprovar(self, interaction: discord.Interaction, button: Button):
+
         if not self.staff_check(interaction):
             await interaction.response.send_message("❌ Sem permissão.", ephemeral=True)
             return
@@ -122,10 +151,15 @@ class WhitelistView(View):
         tag = config.get("tag")
         cargo_bot = interaction.guild.me.top_role
 
-        # Alterar nickname e adicionar cargo
+        await interaction.response.send_message("✅ Aprovado!", ephemeral=True)
+
         try:
             if self.usuario.top_role < cargo_bot:
                 await self.usuario.edit(nick=f"{tag} {self.nome} | {self.idrp}")
+        except:
+            pass
+
+        try:
             if cargo_id:
                 role = interaction.guild.get_role(cargo_id)
                 if role:
@@ -133,40 +167,23 @@ class WhitelistView(View):
         except:
             pass
 
-        descricao = (
-            f"👤 Usuário: {self.usuario.mention}\n"
-            f"📛 Nome RP: {self.nome}\n"
-            f"🆔 ID: {self.idrp}\n"
-            f"✅ Aprovado por: {interaction.user.mention}"
-        )
         if canal_aceitos:
-            asyncio.create_task(self.send_embed_temp(canal_aceitos, "✅ Whitelist Aprovada", descricao))
-
-        # Bloqueio automático se plano expirou
-        guild_id = str(interaction.guild.id)
-        planos = load_json(PLANOS_FILE)
-        if guild_id not in planos or planos[guild_id]["status"] != "ativo":
-            # Envia DM de pagamento com QR e botão confirmar
-            view = ConfirmarPagamentoView(interaction.guild)
-            embed = discord.Embed(
-                title="❌ Plano Expirado",
-                description=f"O plano do servidor **{interaction.guild.name}** venceu.\n"
-                            f"Escaneie o QR Code abaixo para renovar.",
-                color=discord.Color.red()
+            descricao = (
+                f"👤 Usuário: {self.usuario.mention}\n"
+                f"📛 Nome RP: {self.nome}\n"
+                f"🆔 ID: {self.idrp}\n"
+                f"✅ Aprovado por: {interaction.user.mention}"
             )
-            if os.path.exists(QRCODE_FILE):
-                file = discord.File(QRCODE_FILE, filename="qrcode.png")
-                embed.set_image(url="attachment://qrcode.png")
-                await enviar_dm_temp(interaction.guild.owner, embed, view=view)
-            else:
-                await enviar_dm_temp(interaction.guild.owner, embed, view=view)
+            asyncio.create_task(
+                self.send_embed_temp(canal_aceitos, "✅ Whitelist Aprovada", descricao, 86400)
+            )
 
-        await interaction.response.send_message("✅ Aprovado!", ephemeral=True)
         await asyncio.sleep(1)
         await interaction.channel.delete()
 
     @discord.ui.button(label="❌ Recusar", style=discord.ButtonStyle.danger)
     async def recusar(self, interaction: discord.Interaction, button: Button):
+
         if not self.staff_check(interaction):
             await interaction.response.send_message("❌ Sem permissão.", ephemeral=True)
             return
@@ -174,14 +191,16 @@ class WhitelistView(View):
         config = load_json(CONFIG_FILE)
         canal_recusados = interaction.guild.get_channel(config.get("recusados"))
 
-        descricao = (
-            f"👤 Usuário: {self.usuario.mention}\n"
-            f"📛 Nome RP: {self.nome}\n"
-            f"🆔 ID: {self.idrp}\n"
-            f"❌ Recusado por: {interaction.user.mention}"
-        )
         if canal_recusados:
-            asyncio.create_task(self.send_embed_temp(canal_recusados, "❌ Whitelist Recusada", descricao, duracao=36000))
+            descricao = (
+                f"👤 Usuário: {self.usuario.mention}\n"
+                f"📛 Nome RP: {self.nome}\n"
+                f"🆔 ID: {self.idrp}\n"
+                f"❌ Recusado por: {interaction.user.mention}"
+            )
+            asyncio.create_task(
+                self.send_embed_temp(canal_recusados, "❌ Whitelist Recusada", descricao, 86400)
+            )
 
         await interaction.response.send_message("❌ Recusado!", ephemeral=True)
         await asyncio.sleep(1)
@@ -192,49 +211,54 @@ class WhitelistView(View):
 # ------------------------------
 
 class ConfirmarPagamentoView(View):
-    def __init__(self, guild):
-        super().__init__(timeout=None)
-        self.guild = guild
+    def __init__(self, cliente):
+        super().__init__(timeout=86400)  # 24 horas
+        self.cliente = cliente
 
     @discord.ui.button(label="💳 Confirmar Pagamento", style=discord.ButtonStyle.green)
-    async def confirmar_pagamento(self, interaction: discord.Interaction, button: Button):
-        # Log para o dono do bot
-        canal_pag = self.guild.get_channel(interaction.guild.id)  # Substituir pelo ID real do canal log
-        embed = discord.Embed(
-            title="💰 Pagamento Confirmado",
-            description=f"O cliente {self.guild.owner} confirmou o pagamento.\nAtivar manualmente.",
-            color=discord.Color.green()
-        )
-        # Envia DM para dono do bot ou canal log
-        await interaction.client.get_channel(1474620691050660020).send(embed=embed)
-        await interaction.response.send_message("✅ Pagamento confirmado. Aguarde ativação manual.", ephemeral=True)
-        await asyncio.sleep(1)
-        try:
-            await interaction.message.delete()
-        except:
-            pass
+    async def confirmar(self, interaction: discord.Interaction, button: Button):
+        if interaction.user.id != self.cliente.id:
+            await interaction.response.send_message("❌ Apenas o cliente pode confirmar.", ephemeral=True)
+            return
+
+        await interaction.response.send_message("✅ Pagamento confirmado! Aguarde a ativação manual.", ephemeral=True)
+
+        # Envia log para você (controle de pagamentos)
+        canal = interaction.client.get_channel(ID_LOG_PAGAMENTOS)
+        if canal:
+            embed_log = discord.Embed(
+                title="💰 Pagamento Confirmado",
+                description=f"Cliente {self.cliente} confirmou o pagamento.",
+                color=discord.Color.green()
+            )
+            await canal.send(embed=embed_log)
+
+        # Remove o botão após confirmação
+        self.clear_items()
+        await interaction.message.edit(view=self)
 
 # ------------------------------
-# VIEW PAINEL INICIAL
+# VIEW DO PAINEL
 # ------------------------------
 
 class PainelView(View):
-    def __init__(self, bot):
+
+    def __init__(self, bot, gif_url=None):
         super().__init__(timeout=None)
         self.bot = bot
+        self.gif_url = gif_url
 
     @discord.ui.button(label="📋 Iniciar Whitelist", style=discord.ButtonStyle.green)
     async def iniciar(self, interaction: discord.Interaction, button: Button):
+
         if not plano_ativo(interaction.guild.id):
-            embed = discord.Embed(
-                title="❌ Plano Vencido",
-                description="O responsável foi notificado por DM.",
-                color=discord.Color.red()
+            await notificar_cliente(self.bot, interaction.guild)
+            await interaction.response.send_message(
+                "❌ O plano deste servidor está vencido. O responsável foi notificado por DM.",
+                ephemeral=True
             )
-            view = ConfirmarPagamentoView(interaction.guild)
-            await enviar_dm_temp(interaction.guild.owner, embed, view=view)
-            await interaction.response.send_message("❌ O plano deste servidor está vencido.", ephemeral=True)
             return
+
         await interaction.response.send_modal(WhitelistModal())
 
 # ------------------------------
@@ -271,7 +295,7 @@ class Whitelist(commands.Cog):
 
     @app_commands.command(name="painel_wl", description="Abrir o painel de whitelist")
     @app_commands.checks.has_permissions(administrator=True)
-    async def painel_wl(self, interaction: discord.Interaction):
+    async def painel_wl(self, interaction: discord.Interaction, gif_url: str = None):
         config = load_json(CONFIG_FILE)
         canal = interaction.guild.get_channel(config.get("painel"))
         if not canal:
@@ -282,7 +306,9 @@ class Whitelist(commands.Cog):
             description="📝 Clique no botão abaixo para iniciar.\n⏳ Aguarde análise.",
             color=discord.Color.orange()
         )
-        await canal.send(embed=embed, view=PainelView(self.bot))
+        if gif_url:
+            embed.set_image(url=gif_url)
+        await canal.send(embed=embed, view=PainelView(self.bot, gif_url))
         await interaction.response.send_message("✅ Painel enviado!", ephemeral=True)
 
 # ------------------------------
