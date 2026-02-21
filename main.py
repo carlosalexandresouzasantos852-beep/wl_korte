@@ -5,6 +5,9 @@ import os
 import json
 import time
 
+# ------------------------------
+# CONFIGURAÇÃO DO BOT
+# ------------------------------
 TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
     raise RuntimeError("❌ DISCORD_TOKEN não encontrado no ambiente")
@@ -12,15 +15,22 @@ if not TOKEN:
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ------------------------------
+# ARQUIVOS E IDS
+# ------------------------------
 PLANOS_FILE = "planos.json"
 QRCODE_FILE = "qrcode.png"
 ID_LOG_CLIENTES = 1474620768498356224
 ID_LOG_PAGAMENTOS = 1474620691050660020
 
-# ==============================
-# 📂 FUNÇÕES DE ARQUIVO
-# ==============================
+# ------------------------------
+# IMPORT DE VIEWS
+# ------------------------------
+from cogs.whitelist import ConfirmarPagamentoView
 
+# ------------------------------
+# FUNÇÕES DE ARQUIVO
+# ------------------------------
 def load_json(file):
     if not os.path.exists(file):
         return {}
@@ -31,10 +41,9 @@ def save_json(file, data):
     with open(file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
-# ==============================
-# 🔔 VERIFICAÇÃO AUTOMÁTICA DE PLANOS
-# ==============================
-
+# ------------------------------
+# LOOP DE VERIFICAÇÃO DE PLANOS
+# ------------------------------
 @tasks.loop(seconds=3600)
 async def verificar_planos():
     planos = load_json(PLANOS_FILE)
@@ -81,14 +90,11 @@ async def verificar_planos():
                 )
                 embed.add_field(name="💰 Renovação - 30 dias", value="Escaneie o QR Code abaixo para renovar.", inline=False)
 
-                view = None
-                if os.path.exists(QRCODE_FILE):
-                    file = discord.File(QRCODE_FILE, filename="qrcode.png")
-                    embed.set_image(url="attachment://qrcode.png")
-                from cogs.whitelist import ConfirmarPagamentoView
+                # QR Code opcional
+                file = discord.File(QRCODE_FILE, filename="qrcode.png") if os.path.exists(QRCODE_FILE) else None
                 view = ConfirmarPagamentoView(usuario)
 
-                await usuario.send(embed=embed, file=file if os.path.exists(QRCODE_FILE) else None, view=view)
+                await usuario.send(embed=embed, file=file, view=view)
 
                 plano["avisado_vencido"] = True
                 plano["status"] = "encerrado"
@@ -99,10 +105,9 @@ async def verificar_planos():
     if alterado:
         save_json(PLANOS_FILE, planos)
 
-# ==============================
-# 🚀 EVENTOS
-# ==============================
-
+# ------------------------------
+# EVENTOS
+# ------------------------------
 @bot.event
 async def on_ready():
     print(f"🔥 BOT ONLINE 🔥 | {bot.user}")
@@ -110,34 +115,15 @@ async def on_ready():
     print(f"✅ {len(synced)} comandos sincronizados GLOBALMENTE")
     verificar_planos.start()
 
-# Log sempre que entrar no servidor (novo cliente)
-@bot.event
-async def on_guild_join(guild):
-    canal = bot.get_channel(ID_LOG_CLIENTES)
-    dono = guild.owner
-    if canal and dono:
-        embed = discord.Embed(
-            title="🆕 Novo Cliente",
-            color=discord.Color.green()
-        )
-        embed.add_field(name="Servidor", value=guild.name, inline=False)
-        embed.add_field(name="ID Servidor", value=guild.id, inline=False)
-        embed.add_field(name="Dono / Cliente", value=f"{dono} ({dono.id})", inline=False)
-        await canal.send(embed=embed)
-
-# ==============================
-# 🔧 INICIALIZAÇÃO DOS COGS
-# ==============================
-
+# ------------------------------
+# INICIALIZAÇÃO DOS COGS
+# ------------------------------
 async def main():
     async with bot:
-        # Carrega whitelist
         await bot.load_extension("cogs.whitelist")
         print("✅ Cog whitelist carregado")
-        # Carrega controle financeiro
         await bot.load_extension("cogs.controle_financeiro")
         print("✅ Cog controle_financeiro carregado")
-        # Inicia bot
         await bot.start(TOKEN)
 
 asyncio.run(main())
