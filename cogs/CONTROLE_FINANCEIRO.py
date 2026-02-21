@@ -139,7 +139,7 @@ class PainelFinanceiro(View):
 
 def setup(bot: commands.Bot):
 
-    SEU_ID = 123456789012345678  # 🔥 COLOQUE SEU ID AQUI
+    SEU_ID = 851409989762416681  # 🔥 COLOQUE SEU ID AQUI
 
     @bot.command()
     async def controlefinanceiro(ctx, guild_id: str):
