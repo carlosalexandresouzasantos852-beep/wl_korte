@@ -178,7 +178,7 @@ class PainelView(View):
         super().__init__(timeout=None)
         self.gif_url = gif_url or "https://cdn.discordapp.com/attachments/1266573285236408363/1453240164351610931/ezgif.com-video-to-gif-converter.gif"
 
-    @discord.ui.button(label="📋 Iniciar Whitelist - KORTE", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="📋 Iniciar Whitelist - TROPA DO TIO PATINHAS", style=discord.ButtonStyle.green)
     async def iniciar(self, interaction: discord.Interaction, button: Button):
         await interaction.response.send_modal(WhitelistModal())
 
