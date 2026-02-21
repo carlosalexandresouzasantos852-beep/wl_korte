@@ -7,7 +7,7 @@ import time
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
-    raise RuntimeError("❌ DISCORD_TOKEN não encontrado")
+    raise RuntimeError("❌ DISCORD_TOKEN não encontrado no ambiente")
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -17,55 +17,47 @@ QRCODE_FILE = "qrcode.png"
 ID_LOG_CLIENTES = 1474620768498356224
 ID_LOG_PAGAMENTOS = 1474620691050660020
 
-# =========================
-# FUNÇÕES DE ARQUIVO
-# =========================
+# ==============================
+# 📂 FUNÇÕES DE ARQUIVO
+# ==============================
 
-def load_planos():
-    if not os.path.exists(PLANOS_FILE):
+def load_json(file):
+    if not os.path.exists(file):
         return {}
-    with open(PLANOS_FILE, "r", encoding="utf-8") as f:
+    with open(file, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_planos(data):
-    with open(PLANOS_FILE, "w", encoding="utf-8") as f:
+def save_json(file, data):
+    with open(file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
-# =========================
-# VERIFICAÇÃO AUTOMÁTICA DE PLANOS
-# =========================
+# ==============================
+# 🔔 VERIFICAÇÃO AUTOMÁTICA DE PLANOS
+# ==============================
 
-async def enviar_dm_temp(usuario, embed, duracao=86400, view=None):
-    try:
-        msg = await usuario.send(embed=embed, view=view)
-        await asyncio.sleep(duracao)
-        await msg.delete()
-    except:
-        pass
-
+@tasks.loop(seconds=3600)
 async def verificar_planos():
-    await bot.wait_until_ready()
-    while not bot.is_closed():
-        planos = load_planos()
-        agora = time.time()
-        alterado = False
+    planos = load_json(PLANOS_FILE)
+    agora = time.time()
+    alterado = False
 
-        for guild_id, plano in planos.items():
-            if plano.get("status") != "ativo":
-                continue
+    for guild_id, plano in planos.items():
+        if plano.get("status") != "ativo":
+            continue
 
-            tempo_restante = plano.get("expira_em", 0) - agora
-            comprador_id = plano.get("comprador_id")
-            if not comprador_id:
-                continue
+        tempo_restante = plano.get("expira_em", 0) - agora
+        comprador_id = plano.get("comprador_id")
+        if not comprador_id:
+            continue
 
+        try:
+            usuario = await bot.fetch_user(comprador_id)
+        except:
+            continue
+
+        # Aviso 3 dias antes
+        if 0 < tempo_restante <= 3*86400 and not plano.get("avisado_3dias", False):
             try:
-                usuario = await bot.fetch_user(comprador_id)
-            except:
-                continue
-
-            # Aviso 3 dias
-            if 0 < tempo_restante <= 3 * 86400 and not plano.get("avisado_3dias", False):
                 embed = discord.Embed(
                     title="⚠️ Seu plano está quase vencendo",
                     description=f"Faltam 3 dias para o vencimento do seu bot.",
@@ -73,69 +65,79 @@ async def verificar_planos():
                 )
                 embed.add_field(name="Servidor", value=f"ID: {guild_id}", inline=False)
                 embed.add_field(name="Renove para evitar bloqueio.", value="Evite que seu sistema pare automaticamente.", inline=False)
-                await enviar_dm_temp(usuario, embed, duracao=86400)
+                await usuario.send(embed=embed)
                 plano["avisado_3dias"] = True
                 alterado = True
+            except:
+                pass
 
-            # Plano vencido
-            if tempo_restante <= 0 and not plano.get("avisado_vencido", False):
+        # Plano vencido
+        if tempo_restante <= 0 and not plano.get("avisado_vencido", False):
+            try:
                 embed = discord.Embed(
                     title="❌ Plano Expirado",
-                    description=f"Seu plano do servidor ID {guild_id} venceu.\nEscaneie o QR Code para renovar.",
+                    description=f"O plano do servidor ID {guild_id} venceu.",
                     color=discord.Color.red()
                 )
+                embed.add_field(name="💰 Renovação - 30 dias", value="Escaneie o QR Code abaixo para renovar.", inline=False)
+
+                view = None
                 if os.path.exists(QRCODE_FILE):
                     file = discord.File(QRCODE_FILE, filename="qrcode.png")
                     embed.set_image(url="attachment://qrcode.png")
-                    await enviar_dm_temp(usuario, embed, duracao=86400)
-                else:
-                    await enviar_dm_temp(usuario, embed, duracao=86400)
+                from cogs.whitelist import ConfirmarPagamentoView
+                view = ConfirmarPagamentoView(usuario)
+
+                await usuario.send(embed=embed, file=file if os.path.exists(QRCODE_FILE) else None, view=view)
 
                 plano["avisado_vencido"] = True
                 plano["status"] = "encerrado"
                 alterado = True
+            except:
+                pass
 
-        if alterado:
-            save_planos(planos)
-        await asyncio.sleep(3600)
+    if alterado:
+        save_json(PLANOS_FILE, planos)
 
-# =========================
-# EVENTOS
-# =========================
+# ==============================
+# 🚀 EVENTOS
+# ==============================
 
 @bot.event
 async def on_ready():
     print(f"🔥 BOT ONLINE 🔥 | {bot.user}")
     synced = await bot.tree.sync()
     print(f"✅ {len(synced)} comandos sincronizados GLOBALMENTE")
-    bot.loop.create_task(verificar_planos())
+    verificar_planos.start()
 
-# Log de novo cliente
+# Log sempre que entrar no servidor (novo cliente)
 @bot.event
 async def on_guild_join(guild):
     canal = bot.get_channel(ID_LOG_CLIENTES)
-    if canal:
+    dono = guild.owner
+    if canal and dono:
         embed = discord.Embed(
             title="🆕 Novo Cliente",
             color=discord.Color.green()
         )
         embed.add_field(name="Servidor", value=guild.name, inline=False)
         embed.add_field(name="ID Servidor", value=guild.id, inline=False)
-        dono = guild.owner
-        embed.add_field(name="Dono/Cliente", value=f"{dono} ({dono.id})", inline=False)
+        embed.add_field(name="Dono / Cliente", value=f"{dono} ({dono.id})", inline=False)
         await canal.send(embed=embed)
 
-# =========================
-# INICIALIZAÇÃO DOS COGS
-# =========================
+# ==============================
+# 🔧 INICIALIZAÇÃO DOS COGS
+# ==============================
 
 async def main():
     async with bot:
-        # Carrega cogs
+        # Carrega whitelist
         await bot.load_extension("cogs.whitelist")
         print("✅ Cog whitelist carregado")
+        # Carrega controle financeiro
         await bot.load_extension("cogs.controle_financeiro")
         print("✅ Cog controle_financeiro carregado")
+        # Inicia bot
         await bot.start(TOKEN)
 
 asyncio.run(main())
