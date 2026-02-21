@@ -1,18 +1,17 @@
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
-import json
 import time
+import json
 import os
 
 PLANOS_FILE = "planos.json"
-
 ID_LOG_CLIENTES = 1474620768498356224
 ID_LOG_PAGAMENTOS = 1474620691050660020
-
+QRCODE_FILE = "qrcode.png"  # QR Code do pagamento
 
 # =========================
-# UTILIDADES
+# FUNÇÕES DE ARQUIVO
 # =========================
 
 def load_planos():
@@ -33,9 +32,16 @@ def formatar_tempo(timestamp):
     horas = (restante % 86400) // 3600
     return f"{dias} dias e {horas} horas"
 
+async def enviar_dm_temp(usuario, embed, duracao=86400, view=None):
+    try:
+        msg = await usuario.send(embed=embed, view=view)
+        await asyncio.sleep(duracao)
+        await msg.delete()
+    except:
+        pass
 
 # =========================
-# VIEW DO CONTROLE
+# VIEW DE CONTROLE FINANCEIRO
 # =========================
 
 class PainelFinanceiro(View):
@@ -55,105 +61,150 @@ class PainelFinanceiro(View):
                 status = "❌ Plano encerrado"
             else:
                 status = f"✅ Ativo\n⏳ Expira em: {formatar_tempo(plano['expira_em'])}"
-
         embed = discord.Embed(
             title="📊 Controle Financeiro",
             description=f"Servidor ID: `{self.guild_id}`\n\n{status}",
             color=discord.Color.gold()
         )
+        await interaction.response.edit_message(embed=embed, view=self)
 
-        try:
-            await interaction.response.edit_message(embed=embed, view=self)
-        except:
-            # fallback se a interação expirar
-            msg = await interaction.followup.send(embed=embed, view=self)
-            await asyncio.sleep(1)
-            await msg.delete()
-
-    async def enviar_dm_cliente(self, guild, mensagem):
-        try:
-            owner = guild.owner
-            if owner:
-                await owner.send(mensagem)
-        except:
-            pass
-
-    async def log_pagamento(self, titulo, guild, comprador_id, valor):
-        canal = self.bot.get_channel(ID_LOG_PAGAMENTOS)
-        if canal:
-            embed = discord.Embed(
-                title=titulo,
-                color=discord.Color.green() if "Ativado" in titulo else discord.Color.blurple
-            )
-            embed.add_field(name="Servidor", value=f"{guild.name}", inline=False)
-            embed.add_field(name="ID Servidor", value=guild.id, inline=False)
-            embed.add_field(name="Cliente", value=f"{guild.owner} ({guild.owner.id})", inline=False)
-            embed.add_field(name="Valor", value=valor, inline=False)
-            await canal.send(embed=embed)
-
+    # -------------------------
+    # ATIVAR 30 DIAS
+    # -------------------------
     @discord.ui.button(label="Ativar 30 Dias", style=discord.ButtonStyle.green)
     async def ativar(self, interaction: discord.Interaction, button: Button):
+
         planos = load_planos()
+        guild = interaction.guild
+
+        # Usa o dono do servidor como cliente
+        comprador_id = guild.owner.id
+
         planos[self.guild_id] = {
             "status": "ativo",
             "expira_em": time.time() + (30 * 86400),
-            "comprador_id": int(self.guild_id),  # para referência
+            "comprador_id": comprador_id,
             "avisado_3dias": False,
             "avisado_vencido": False
         }
+
         save_planos(planos)
 
-        guild = interaction.guild
-        await self.enviar_dm_cliente(guild, f"✅ Seu plano foi ATIVADO por 30 dias!\nServidor: {guild.name}")
-        await self.log_pagamento("💰 Plano Ativado", guild, guild.owner.id, "R$ 29,90")
+        # DM para o cliente
+        try:
+            cliente = await self.bot.fetch_user(comprador_id)
+            embed_cliente = discord.Embed(
+                title="✅ Plano Ativado",
+                description=f"Seu plano do servidor **{guild.name}** foi ativado por 30 dias.",
+                color=discord.Color.green()
+            )
+            await enviar_dm_temp(cliente, embed_cliente, duracao=86400)
+        except:
+            pass
+
+        # Log para você
+        canal = self.bot.get_channel(ID_LOG_PAGAMENTOS)
+        if canal:
+            embed_log = discord.Embed(
+                title="💰 Plano Ativado",
+                color=discord.Color.green()
+            )
+            embed_log.add_field(name="Servidor", value=guild.name, inline=False)
+            embed_log.add_field(name="Cliente", value=f"{guild.owner} ({comprador_id})", inline=False)
+            embed_log.add_field(name="Valor", value="R$ 29,90", inline=False)
+            await canal.send(embed=embed_log)
+
         await self.atualizar_status(interaction)
 
+    # -------------------------
+    # RENOVAR +30 DIAS
+    # -------------------------
     @discord.ui.button(label="Renovar +30 Dias", style=discord.ButtonStyle.blurple)
     async def renovar(self, interaction: discord.Interaction, button: Button):
         planos = load_planos()
+        guild = interaction.guild
+        comprador_id = guild.owner.id
+
         if self.guild_id in planos and planos[self.guild_id]["status"] == "ativo":
             planos[self.guild_id]["expira_em"] += (30 * 86400)
-            planos[self.guild_id]["avisado_3dias"] = False
-            planos[self.guild_id]["avisado_vencido"] = False
         else:
             planos[self.guild_id] = {
                 "status": "ativo",
                 "expira_em": time.time() + (30 * 86400),
-                "comprador_id": int(self.guild_id),
+                "comprador_id": comprador_id,
                 "avisado_3dias": False,
                 "avisado_vencido": False
             }
+
         save_planos(planos)
-        guild = interaction.guild
-        await self.enviar_dm_cliente(guild, f"🔄 Seu plano foi RENOVADO por +30 dias!\nServidor: {guild.name}")
-        await self.log_pagamento("💰 Plano Renovado", guild, guild.owner.id, "R$ 29,90")
+
+        # DM para o cliente
+        try:
+            cliente = await self.bot.fetch_user(comprador_id)
+            embed_cliente = discord.Embed(
+                title="🔄 Plano Renovado",
+                description=f"Seu plano do servidor **{guild.name}** foi renovado por +30 dias.",
+                color=discord.Color.blurple()
+            )
+            await enviar_dm_temp(cliente, embed_cliente, duracao=86400)
+        except:
+            pass
+
+        # Log para você
+        canal = self.bot.get_channel(ID_LOG_PAGAMENTOS)
+        if canal:
+            embed_log = discord.Embed(
+                title="💰 Plano Renovado",
+                color=discord.Color.blurple
+            )
+            embed_log.add_field(name="Servidor", value=guild.name, inline=False)
+            embed_log.add_field(name="Cliente", value=f"{guild.owner} ({comprador_id})", inline=False)
+            embed_log.add_field(name="Valor", value="R$ 29,90", inline=False)
+            await canal.send(embed=embed_log)
+
         await self.atualizar_status(interaction)
 
+    # -------------------------
+    # ENCERRAR
+    # -------------------------
     @discord.ui.button(label="Encerrar Plano", style=discord.ButtonStyle.red)
     async def encerrar(self, interaction: discord.Interaction, button: Button):
         planos = load_planos()
+        guild = interaction.guild
+        comprador_id = planos.get(self.guild_id, {}).get("comprador_id")
+
         planos[self.guild_id] = {
             "status": "encerrado",
             "expira_em": 0,
-            "comprador_id": planos.get(self.guild_id, {}).get("comprador_id"),
+            "comprador_id": comprador_id,
             "avisado_3dias": False,
             "avisado_vencido": False
         }
+
         save_planos(planos)
-        guild = interaction.guild
-        await self.log_pagamento("❌ Plano Encerrado", guild, guild.owner.id, "R$ 29,90")
+
+        # Log para você
+        canal = self.bot.get_channel(ID_LOG_PAGAMENTOS)
+        if canal:
+            embed_log = discord.Embed(
+                title="❌ Plano Encerrado",
+                color=discord.Color.red
+            )
+            embed_log.add_field(name="Servidor", value=guild.name, inline=False)
+            embed_log.add_field(name="Encerrado por", value=f"{interaction.user} ({interaction.user.id})", inline=False)
+            await canal.send(embed=embed_log)
+
         await self.atualizar_status(interaction)
 
-
 # =========================
-# COG
+# COG PRINCIPAL
 # =========================
 
 class ControleFinanceiro(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.SEU_ID = 851409989762416681
+        self.SEU_ID = 851409989762416681  # Seu ID de administrador
 
     @commands.command()
     async def controlefinanceiro(self, ctx, guild_id: str):
@@ -178,9 +229,9 @@ class ControleFinanceiro(commands.Cog):
         view = PainelFinanceiro(guild_id, self.bot)
         await ctx.send(embed=embed, view=view)
 
+    # LOG AUTOMÁTICO DE NOVO CLIENTE (sempre que entra no servidor)
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
-        # Sempre envia log, mesmo se já tiver log antigo
         canal = self.bot.get_channel(ID_LOG_CLIENTES)
         if canal:
             embed = discord.Embed(
@@ -189,9 +240,9 @@ class ControleFinanceiro(commands.Cog):
             )
             embed.add_field(name="Servidor", value=guild.name, inline=False)
             embed.add_field(name="ID Servidor", value=guild.id, inline=False)
-            embed.add_field(name="Dono / Cliente", value=f"{guild.owner} ({guild.owner.id})", inline=False)
+            dono = guild.owner
+            embed.add_field(name="Dono/Cliente", value=f"{dono} ({dono.id})", inline=False)
             await canal.send(embed=embed)
-
 
 # =========================
 # SETUP
