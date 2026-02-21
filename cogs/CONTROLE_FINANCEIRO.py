@@ -64,10 +64,6 @@ class PainelFinanceiro(View):
 
         await interaction.response.edit_message(embed=embed, view=self)
 
-    # =========================
-    # BOTÃO ATIVAR
-    # =========================
-
     @discord.ui.button(label="Ativar 30 Dias", style=discord.ButtonStyle.green)
     async def ativar(self, interaction: discord.Interaction, button: Button):
 
@@ -82,12 +78,7 @@ class PainelFinanceiro(View):
         }
 
         save_planos(planos)
-
         await self.atualizar_status(interaction)
-
-    # =========================
-    # BOTÃO RENOVAR
-    # =========================
 
     @discord.ui.button(label="Renovar +30 Dias", style=discord.ButtonStyle.blurple)
     async def renovar(self, interaction: discord.Interaction, button: Button):
@@ -108,12 +99,7 @@ class PainelFinanceiro(View):
             }
 
         save_planos(planos)
-
         await self.atualizar_status(interaction)
-
-    # =========================
-    # BOTÃO ENCERRAR
-    # =========================
 
     @discord.ui.button(label="Encerrar Plano", style=discord.ButtonStyle.red)
     async def encerrar(self, interaction: discord.Interaction, button: Button):
@@ -129,22 +115,23 @@ class PainelFinanceiro(View):
         }
 
         save_planos(planos)
-
         await self.atualizar_status(interaction)
 
 
 # =========================
-# COMANDO
+# COG
 # =========================
 
-def setup(bot: commands.Bot):
+class ControleFinanceiro(commands.Cog):
 
-    SEU_ID = 851409989762416681  # 🔥 COLOQUE SEU ID AQUI
+    def __init__(self, bot):
+        self.bot = bot
+        self.SEU_ID = 851409989762416681  # 🔥 coloque seu ID aqui
 
-    @bot.command()
-    async def controlefinanceiro(ctx, guild_id: str):
+    @commands.command()
+    async def controlefinanceiro(self, ctx, guild_id: str):
 
-        if ctx.author.id != SEU_ID:
+        if ctx.author.id != self.SEU_ID:
             return
 
         planos = load_planos()
@@ -168,3 +155,11 @@ def setup(bot: commands.Bot):
         view = PainelFinanceiro(guild_id)
 
         await ctx.send(embed=embed, view=view)
+
+
+# =========================
+# SETUP CORRETO (DISCORD.PY 2.X)
+# =========================
+
+async def setup(bot):
+    await bot.add_cog(ControleFinanceiro(bot))
