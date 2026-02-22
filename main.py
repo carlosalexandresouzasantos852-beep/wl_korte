@@ -109,11 +109,19 @@ async def verificar_planos():
 # EVENTOS
 # ------------------------------
 @bot.event
-async def on_ready():
-    print(f"🔥 BOT ONLINE 🔥 | {bot.user}")
-    synced = await bot.tree.sync()
-    print(f"✅ {len(synced)} comandos sincronizados GLOBALMENTE")
-    verificar_planos.start()
+async def on_guild_join(guild):
+    if registrar_cliente(guild):  # retorna True se for novo cliente
+        canal = bot.get_channel(ID_LOG_CLIENTES)
+        dono = guild.owner
+        if canal and dono:
+            embed = discord.Embed(
+                title="🆕 Novo Cliente",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="Servidor", value=guild.name, inline=False)
+            embed.add_field(name="ID Servidor", value=guild.id, inline=False)
+            embed.add_field(name="Dono / Cliente", value=f"{dono} ({dono.id})", inline=False)
+            await canal.send(embed=embed)
 
 # ------------------------------
 # INICIALIZAÇÃO DOS COGS
