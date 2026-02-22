@@ -51,7 +51,8 @@ async def verificar_planos():
     alterado = False
 
     for guild_id, plano in planos.items():
-        if plano.get("status") != "ativo":
+        guild = bot.get_guild(int(guild_id))
+        if guild is None:
             continue
 
         tempo_restante = plano.get("expira_em", 0) - agora
@@ -69,10 +70,10 @@ async def verificar_planos():
             try:
                 embed = discord.Embed(
                     title="⚠️ Seu plano está quase vencendo",
-                    description=f"Faltam 3 dias para o vencimento do seu bot.",
-                    color=discord.Color.orange()
+                    description=f"O plano do servidor **{guild.name}** está prestes a vencer.",
+                    color=discord.Color.red()
                 )
-                embed.add_field(name="Servidor", value=f"ID: {guild_id}", inline=False)
+                embed.add_field(name="⏳ Tempo restante", value="3 dias restantes.", inline=False)
                 embed.add_field(name="Renove para evitar bloqueio.", value="Evite que seu sistema pare automaticamente.", inline=False)
                 await usuario.send(embed=embed)
                 plano["avisado_3dias"] = True
@@ -85,10 +86,14 @@ async def verificar_planos():
             try:
                 embed = discord.Embed(
                     title="❌ Plano Expirado",
-                    description=f"O plano do servidor ID {guild_id} venceu.",
+                    description=f"O plano do servidor **{guild.name}** venceu.",
                     color=discord.Color.red()
                 )
-                embed.add_field(name="💰 Renovação - 30 dias", value="Escaneie o QR Code abaixo para renovar.", inline=False)
+                embed.add_field(
+                    name="💰 Renovação - 30 dias",
+                    value="Escaneie o QR Code abaixo para renovar.",
+                    inline=False
+                )
 
                 # QR Code opcional
                 file = discord.File(QRCODE_FILE, filename="qrcode.png") if os.path.exists(QRCODE_FILE) else None
@@ -132,6 +137,7 @@ async def main():
         print("✅ Cog whitelist carregado")
         await bot.load_extension("cogs.controle_financeiro")
         print("✅ Cog controle_financeiro carregado")
-        await bot.start(TOKEN)
+
+        verificar_planos.start()
 
 asyncio.run(main())

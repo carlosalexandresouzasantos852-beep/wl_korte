@@ -113,8 +113,14 @@ class PainelFinanceiro(View):
     @discord.ui.button(label="Renovar +30 Dias", style=discord.ButtonStyle.blurple)
     async def renovar(self, interaction: discord.Interaction, button: Button):
 
-        guild = interaction.guild
-        comprador_id = guild.owner.id
+        guild = self.bot.get_guild(int(self.guild_id))
+
+        if guild is None:
+            await interaction.response.send_message("Servidor não encontrado.", ephemeral=True)
+            return
+
+        dono = guild.owner
+        comprador_id = dono.id
 
         planos = load_planos()
         if self.guild_id in planos and planos[self.guild_id]["status"] == "ativo":
@@ -130,7 +136,7 @@ class PainelFinanceiro(View):
         save_planos(planos)
 
         # DM para o cliente correto
-        cliente = await self.bot.fetch_user(comprador_id)
+        cliente = dono
         embed_cliente = discord.Embed(
             title="🔄 Plano Renovado",
             description=f"Seu plano do servidor **{guild.name}** foi renovado por +30 dias.",
@@ -159,7 +165,7 @@ class PainelFinanceiro(View):
     async def encerrar(self, interaction: discord.Interaction, button: Button):
 
         planos = load_planos()
-        guild = interaction.guild
+        guild = self.bot.get_guild(int(self.guild_id))
         comprador_id = planos.get(self.guild_id, {}).get("comprador_id")
 
         planos[self.guild_id] = {
