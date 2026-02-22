@@ -114,6 +114,15 @@ async def verificar_planos():
 # EVENTOS
 # ------------------------------
 @bot.event
+async def on_ready():
+    print(f"🔥 BOT ONLINE 🔥 | {bot.user}")
+    
+    try:
+        synced = await bot.tree.sync()
+        print(f"✅ {len(synced)} comandos sincronizados GLOBALMENTE")
+    except Exception as e:
+        print(f"❌ Erro ao sincronizar comandos: {e}")
+        
 async def on_guild_join(guild):
     if registrar_cliente(guild):  # retorna True se for novo cliente
         canal = bot.get_channel(ID_LOG_CLIENTES)
@@ -137,7 +146,6 @@ async def main():
         print("✅ Cog whitelist carregado")
         await bot.load_extension("cogs.controle_financeiro")
         print("✅ Cog controle_financeiro carregado")
-
         verificar_planos.start()
         await bot.start(TOKEN)
 
