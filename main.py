@@ -139,5 +139,6 @@ async def main():
         print("✅ Cog controle_financeiro carregado")
 
         verificar_planos.start()
+        await bot.start(TOKEN)
 
 asyncio.run(main())
