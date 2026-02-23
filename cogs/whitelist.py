@@ -278,12 +278,5 @@ async def config_wl(
         await canal.send(embed=embed, view=PainelView(self.bot, gif_url))
         await interaction.response.send_message("✅ Painel enviado!", ephemeral=True)
 
-        try:
-            ...
-        except Exception as e:
-            print(f"ERRO NO COMANDO: {e}")
-            if not interaction.response.is_done():
-                await interaction.response.send_message("❌ Ocorreu um erro.", ephemeral=True)
-
 async def setup(bot):
     await bot.add_cog(Whitelist(bot))
