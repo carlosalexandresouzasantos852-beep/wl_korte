@@ -227,33 +227,43 @@ class Whitelist(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="config_wl", description="Configurar sistema de whitelist")
-    @app_commands.checks.has_permissions(administrator=True)
-    async def config_wl(
-        self, interaction: discord.Interaction,
-        canal_painel: discord.TextChannel,
-        categoria: discord.CategoryChannel,
-        aceitos: discord.TextChannel,
-        recusados: discord.TextChannel,
-        cargo: discord.Role,
-        tag: str
-    ):
-        data = {
-            "painel": canal_painel.id,
-            "categoria": categoria.id,
-            "aceitos": aceitos.id,
-            "recusados": recusados.id,
-            "cargo": cargo.id,
-            "tag": tag
-        }
-        save_json(CONFIG_FILE, data)
-        await interaction.response.send_message("✅ Whitelist configurada!", ephemeral=True)
+@app_commands.command(name="config_wl", description="Configurar sistema de whitelist")
+@app_commands.checks.has_permissions(administrator=True)
+async def config_wl(
+    self, interaction: discord.Interaction,
+    canal_painel: discord.TextChannel,
+    categoria: discord.CategoryChannel,
+    aceitos: discord.TextChannel,
+    recusados: discord.TextChannel,
+    cargo: discord.Role,
+    tag: str
+):
+    config = load_json(CONFIG_FILE)
+
+    config[str(interaction.guild.id)] = {
+        "painel": canal_painel.id,
+        "categoria": categoria.id,
+        "aceitos": aceitos.id,
+        "recusados": recusados.id,
+        "cargo": cargo.id,
+        "tag": tag
+    }
+
+    save_json(CONFIG_FILE, config)
+
+    await interaction.response.send_message("✅ Whitelist configurada!", ephemeral=True)
 
     @app_commands.command(name="painel_wl", description="Abrir painel de whitelist")
     @app_commands.checks.has_permissions(administrator=True)
     async def painel_wl(self, interaction: discord.Interaction, gif_url: str = None):
         config = load_json(CONFIG_FILE)
-        canal = interaction.guild.get_channel(config.get("painel"))
+        guild_config = config.get(str(interaction.guild.id))
+
+        if not guild_config:
+            await interaction.response.send_message("❌ Sistema não configurado.", ephemeral=True)
+            return
+
+        canal = interaction.guild.get_channel(guild_config.get("painel"))
         if not canal:
             await interaction.response.send_message("❌ Canal do painel inválido.", ephemeral=True)
             return
@@ -267,6 +277,13 @@ class Whitelist(commands.Cog):
             embed.set_image(url=gif_url)
         await canal.send(embed=embed, view=PainelView(self.bot, gif_url))
         await interaction.response.send_message("✅ Painel enviado!", ephemeral=True)
+
+        try:
+            ...
+        except Exception as e:
+            print(f"ERRO NO COMANDO: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Ocorreu um erro.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Whitelist(bot))
